@@ -34,9 +34,9 @@
  */
 #define LARGE_BED
 #define SDSUPPORT
-//#define CHANGE_Y_DIRECTION      // If your bed homes in the wrong direction (it should move front to back) enable this.
-//#define CHANGE_X_DIRECTION      // If your X carriage homes in the wrong direction (it should move right to left) enable this.
-//#define CHANGE_Z_DIRECTION      // If your Z homes in the wrong direction (it should move top to bottom) enable this.
+//#define CHANGE_Y_DIRECTION      // If your bed homes in the wrong direction front to back, enable this.
+//#define CHANGE_X_DIRECTION      // If your X carriage homes in the wrong direction left to right, enable this.
+//#define CHANGE_Z_DIRECTION      // If your Z homes in the wrong direction bottom to top, enable this.
 //#define HOTEND_E3DV6            // Genuine E3D v6 hotend.
 //#define FULL_GRAPHIC_SMART      // Enable this if you have a RepRap Discount Full Graphic Smart Controller (The
                                   // stock controller is a RepRap Discount Smart Controller)
@@ -465,7 +465,6 @@
  *    11 : 100k beta 3950 1% thermistor (4.7k pullup)
  *    12 : 100k 0603 SMD Vishay NTCS0603E3104FXT (4.7k pullup) (calibrated for Makibox hot bed)
  *    13 : 100k Hisens 3950  1% up to 300°C for hotend "Simple ONE " & "Hotend "All In ONE"
- *    15 : 100k thermistor calibration for JGAurora A5 hotend
  *    20 : the PT100 circuit found in the Ultimainboard V2.x
  *    60 : 100k Maker's Tool Works Kapton Bed Thermistor beta=3950
  *    66 : 4.7M High Temperature thermistor from Dyze Design
@@ -503,6 +502,7 @@
 #define TEMP_SENSOR_3 0
 #define TEMP_SENSOR_4 0
 #define TEMP_SENSOR_BED 1
+#define TEMP_SENSOR_CHAMBER 1
 
 // Dummy thermistor constant temperature readings, for use with 998 and 999
 #define DUMMY_THERMISTOR_998_VALUE 25
@@ -523,6 +523,11 @@
 #define TEMP_BED_HYSTERESIS 3       // (degC) range of +/- temperatures considered "close" to the target one
 #define TEMP_BED_WINDOW     1       // (degC) Window around target to start the residency timer x degC early.
 
+// Chamber temperature must be close to target for this long before M191 returns success
+#define TEMP_CHAMBER_RESIDENCY_TIME 5  // (seconds)
+#define TEMP_CHAMBER_HYSTERESIS 3       // (degC) range of +/- temperatures considered "close" to the target one
+#define TEMP_CHAMBER_WINDOW     1       // (degC) Window around target to start the residency timer x degC early.
+
 // The minimal temperature defines the temperature below which the heater will not be enabled It is used
 // to check that the wiring to the thermistor is not broken.
 // Otherwise this would lead to the heater being powered on all the time.
@@ -532,6 +537,7 @@
 #define HEATER_3_MINTEMP 5
 #define HEATER_4_MINTEMP 5
 #define BED_MINTEMP 5
+#define CHAMBER_MINTEMP 5
 
 // When temperature exceeds max temp, your heater will be switched off.
 // This feature exists to protect your hotend from overheating accidentally, but *NOT* from thermistor short/failure!
@@ -542,6 +548,7 @@
 #define HEATER_3_MAXTEMP 275
 #define HEATER_4_MAXTEMP 275
 #define BED_MAXTEMP 150
+#define CHAMBER_MAXTEMP 40
 
 //===========================================================================
 //============================= PID Settings ================================
@@ -632,6 +639,52 @@
 
   // FIND YOUR OWN: "M303 E-1 C8 S90" to run autotune on the bed at 90 degreesC for 8 cycles.
 #endif // PIDTEMPBED
+
+//===========================================================================
+//============================= PID > Chamber Temperature Control ===============
+//===========================================================================
+// Select PID or bang-bang with PIDTEMPCHAMBER. If bang-bang, CHAMBER_LIMIT_SWITCHING will enable hysteresis
+//
+// Uncomment this to enable PID on the chamber. It uses the same frequency PWM as the extruder.
+// If your PID_dT is the default, and correct for your hardware/configuration, that means 7.689Hz,
+// which is fine for driving a square wave into a resistive load and does not significantly impact you FET heating.
+// This also works fine on a Fotek SSR-10DA Solid State Relay into a 250W heater.
+// If your configuration is significantly different than this and you don't understand the issues involved, you probably
+// shouldn't use chamber PID until someone else verifies your hardware works.
+// If this is enabled, find your own PID constants below.
+//#define PIDTEMPCHAMBER
+
+//#define BED_LIMIT_SWITCHING
+
+// This sets the max power delivered to the bed, and replaces the HEATER_BED_DUTY_CYCLE_DIVIDER option.
+// all forms of bed control obey this (PID, bang-bang, bang-bang with hysteresis)
+// setting this to anything other than 255 enables a form of PWM to the bed just like HEATER_BED_DUTY_CYCLE_DIVIDER did,
+// so you shouldn't use it unless you are OK with PWM on your bed.  (see the comment on enabling PIDTEMPBED)
+#define MAX_BED_POWER 255 // limits duty cycle to bed; 255=full current
+
+#if ENABLED(PIDTEMPCHAMBER)
+
+  //#define PID_CHAMBER_DEBUG // Sends debug data to the serial port.
+
+  //120V 250W silicone heater into 4mm borosilicate (MendelMax 1.5+)
+  //from FOPDT model - kp=.39 Tp=405 Tdead=66, Tc set to 79.2, aggressive factor of .15 (vs .1, 1, 10)
+  //#define  DEFAULT_bedKp 10.00
+  //#define  DEFAULT_bedKi .023
+  //#define  DEFAULT_bedKd 305.4
+
+  //120V 250W silicone heater into 4mm borosilicate (MendelMax 1.5+)
+  //from pidautotune
+  //#define  DEFAULT_bedKp 97.1
+  //#define  DEFAULT_bedKi 1.41
+  //#define  DEFAULT_bedKd 1675.16
+
+  // TEVO Tarantula Custom PID Settings - Chamber
+  #define  DEFAULT_chamberKp chamber_Kp
+  #define  DEFAULT_chamberKi chamber_Ki
+  #define  DEFAULT_chamberKd chamber_Kd
+
+  // FIND YOUR OWN: "M303 E-2 C8 S30" to run autotune on the bed at 30 degreesC for 8 cycles.
+#endif // PIDTEMPCHAMBER
 
 // @section extruder
 
@@ -1234,14 +1287,14 @@
   #define GRID_MAX_POINTS_X GRID_POINTS
   #define GRID_MAX_POINTS_Y GRID_MAX_POINTS_X
 
-  // The Z probe minimum outer margin (to validate G29 parameters).
-  #define MIN_PROBE_EDGE BED_MARGIN
-
   // Set the boundaries for probing (where the probe can reach).
   #define LEFT_PROBE_BED_POSITION PROBE_X_LEFT
   #define RIGHT_PROBE_BED_POSITION PROBE_X_RIGHT
   #define FRONT_PROBE_BED_POSITION PROBE_Y_FRONT
   #define BACK_PROBE_BED_POSITION PROBE_Y_BACK
+
+  // The Z probe minimum outer margin (to validate G29 parameters).
+  #define MIN_PROBE_EDGE BED_MARGIN
 
   // Probe along the Y axis, advancing X after each column
   //#define PROBE_Y_FIRST
