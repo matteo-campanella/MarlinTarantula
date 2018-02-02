@@ -141,6 +141,7 @@
  * M128 - EtoP Open. (Requires BARICUDA)
  * M129 - EtoP Closed. (Requires BARICUDA)
  * M140 - Set bed target temp. S<temp>
+ * M141 - Set chamber target temp. S<temp>
  * M145 - Set heatup values for materials on the LCD. H<hotend> B<bed> F<fan speed> for S<material> (0=PLA, 1=ABS)
  * M149 - Set temperature units. (Requires TEMPERATURE_UNITS_SUPPORT)
  * M150 - Set Status LED Color as R<red> U<green> B<blue> P<bright>. Values 0-255. (Requires BLINKM, RGB_LED, RGBW_LED, NEOPIXEL_LED, or PCA9632).
@@ -150,6 +151,7 @@
  * M165 - Set the proportions for a mixing extruder. Use parameters ABCDHI to set the mixing factors. (Requires MIXING_EXTRUDER)
  * M190 - Sxxx Wait for bed current temp to reach target temp. ** Waits only when heating! **
  *        Rxxx Wait for bed current temp to reach target temp. ** Waits for heating or cooling. **
+ * M191 - as M190 for chamber
  * M200 - Set filament diameter, D<diameter>, setting E axis units to cubic. (Use S0 to revert to linear units.)
  * M201 - Set max acceleration in units/s^2 for print moves: "M201 X<accel> Y<accel> Z<accel> E<accel>"
  * M202 - Set max acceleration in units/s^2 for travel moves: "M202 X<accel> Y<accel> Z<accel> E<accel>" ** UNUSED IN MARLIN! **
@@ -8033,6 +8035,139 @@ inline void gcode_M109() {
 
 #endif // HAS_TEMP_BED
 
+#if HAS_TEMP_CHAMBER
+
+  #ifndef MIN_COOLING_SLOPE_DEG_CHAMBER
+    #define MIN_COOLING_SLOPE_DEG_CHAMBER 1.50
+  #endif
+  #ifndef MIN_COOLING_SLOPE_TIME_CHAMBER
+    #define MIN_COOLING_SLOPE_TIME_CHAMBER 60
+  #endif
+
+  /**
+   * M191: Sxxx Wait for chamber current temp to reach target temp. Waits only when heating
+   *       Rxxx Wait for chamber current temp to reach target temp. Waits when heating and cooling
+   */
+  inline void gcode_M191() {
+    if (DEBUGGING(DRYRUN)) return;
+
+    LCD_MESSAGEPGM(MSG_CHAMBER_HEATING);
+    const bool no_wait_for_cooling = parser.seenval('S');
+    if (no_wait_for_cooling || parser.seenval('R')) {
+      thermalManager.setTargetChamber(parser.value_celsius());
+      #if ENABLED(PRINTJOB_TIMER_AUTOSTART)
+        if (parser.value_celsius() > CHAMBER_MINTEMP)
+          print_job_timer.start();
+      #endif
+    }
+    else return;
+
+    #if TEMP_CHAMBER_RESIDENCY_TIME > 0
+      millis_t residency_start_ms = 0;
+      // Loop until the temperature has stabilized
+      #define TEMP_CHAMBER_CONDITIONS (!residency_start_ms || PENDING(now, residency_start_ms + (TEMP_CHAMBER_RESIDENCY_TIME) * 1000UL))
+    #else
+      // Loop until the temperature is very close target
+      #define TEMP_CHAMBER_CONDITIONS (wants_to_cool ? thermalManager.isCoolingChamber() : thermalManager.isHeatingChamber())
+    #endif
+
+    float target_temp = -1.0, old_temp = 9999.0;
+    bool wants_to_cool = false;
+    wait_for_heatup = true;
+    millis_t now, next_temp_ms = 0, next_cool_check_ms = 0;
+
+    #if DISABLED(BUSY_WHILE_HEATING)
+      KEEPALIVE_STATE(NOT_BUSY);
+    #endif
+
+    target_extruder = active_extruder; // for print_heaterstates
+
+    #if ENABLED(PRINTER_EVENT_LEDS)
+      const float start_temp = thermalManager.degChamber();
+      uint8_t old_red = 255;
+    #endif
+
+    do {
+      // Target temperature might be changed during the loop
+      if (target_temp != thermalManager.degTargetChamber()) {
+        wants_to_cool = thermalManager.isCoolingChamber();
+        target_temp = thermalManager.degTargetChamber();
+
+        // Exit if S<lower>, continue if S<higher>, R<lower>, or R<higher>
+        if (no_wait_for_cooling && wants_to_cool) break;
+      }
+
+      now = millis();
+      if (ELAPSED(now, next_temp_ms)) { //Print Temp Reading every 1 second while heating up.
+        next_temp_ms = now + 1000UL;
+        thermalManager.print_heaterstates();
+        #if TEMP_BED_RESIDENCY_TIME > 0
+          SERIAL_PROTOCOLPGM(" W:");
+          if (residency_start_ms)
+            SERIAL_PROTOCOL(long((((TEMP_CHAMBER_RESIDENCY_TIME) * 1000UL) - (now - residency_start_ms)) / 1000UL));
+          else
+            SERIAL_PROTOCOLCHAR('?');
+        #endif
+        SERIAL_EOL();
+      }
+
+      idle();
+      refresh_cmd_timeout(); // to prevent stepper_inactive_time from running out
+
+      const float temp = thermalManager.degChamber();
+
+      #if ENABLED(PRINTER_EVENT_LEDS)
+        // Gradually change LED strip from blue to violet as bed heats up
+        if (!wants_to_cool) {
+          const uint8_t red = map(constrain(temp, start_temp, target_temp), start_temp, target_temp, 0, 255);
+          if (red != old_red) {
+            old_red = red;
+            leds.set_color(
+              MakeLEDColor(red, 0, 255, 0, pixels.getBrightness())
+              #if ENABLED(NEOPIXEL_IS_SEQUENTIAL)
+                , true
+              #endif
+            );
+          }
+        }
+      #endif
+
+      #if TEMP_CHAMBER_RESIDENCY_TIME > 0
+
+        const float temp_diff = FABS(target_temp - temp);
+
+        if (!residency_start_ms) {
+          // Start the TEMP_CHAMBER_RESIDENCY_TIME timer when we reach target temp for the first time.
+          if (temp_diff < TEMP_CHAMBER_WINDOW) residency_start_ms = now;
+        }
+        else if (temp_diff > TEMP_CHAMBER_HYSTERESIS) {
+          // Restart the timer whenever the temperature falls outside the hysteresis.
+          residency_start_ms = now;
+        }
+
+      #endif // TEMP_CHAMBER_RESIDENCY_TIME > 0
+
+      // Prevent a wait-forever situation if R is misused i.e. M191 R0
+      if (wants_to_cool) {
+        // Break after MIN_COOLING_SLOPE_TIME_CHAMBER seconds
+        // if the temperature did not drop at least MIN_COOLING_SLOPE_DEG_CHAMBER
+        if (!next_cool_check_ms || ELAPSED(now, next_cool_check_ms)) {
+          if (old_temp - temp < MIN_COOLING_SLOPE_DEG_CHAMBER) break;
+          next_cool_check_ms = now + 1000UL * MIN_COOLING_SLOPE_TIME_CHAMBER;
+          old_temp = temp;
+        }
+      }
+
+    } while (wait_for_heatup && TEMP_CHAMBER_CONDITIONS);
+
+    if (wait_for_heatup) LCD_MESSAGEPGM(MSG_CHAMBER_DONE);
+    #if DISABLED(BUSY_WHILE_HEATING)
+      KEEPALIVE_STATE(IN_HANDLER);
+    #endif
+  }
+
+#endif // HAS_TEMP_CHAMBER  
+
 /**
  * M110: Set Current Line Number
  */
@@ -8132,6 +8267,14 @@ inline void gcode_M111() {
 inline void gcode_M140() {
   if (DEBUGGING(DRYRUN)) return;
   if (parser.seenval('S')) thermalManager.setTargetBed(parser.value_celsius());
+}
+
+/**
+ * M141: Set chamber temperature
+ */
+inline void gcode_M141() {
+  if (DEBUGGING(DRYRUN)) return;
+  if (parser.seenval('S')) thermalManager.setTargetChamber(parser.value_celsius());
 }
 
 #if ENABLED(ULTIPANEL)

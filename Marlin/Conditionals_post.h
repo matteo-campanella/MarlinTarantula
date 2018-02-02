@@ -345,6 +345,18 @@
     #define BED_USES_THERMISTOR
   #endif
 
+  #if TEMP_SENSOR_CHAMBER <= -1
+    #error "MAX6675 / MAX31855 Thermocouples not supported for TEMP_SENSOR_CHAMBER"
+  #elif TEMP_SENSOR_CHAMBER == -1
+    #define CHAMBER_USES_AD595
+  #elif TEMP_SENSOR_CHAMBER == 0
+    #undef CHAMBER_MINTEMP
+    #undef CHAMBER_MAXTEMP
+  #elif TEMP_SENSOR_CHAMBER > 0
+    #define THERMISTORCHAMBER TEMP_SENSOR_CHAMBER
+    #define CHAMBER_USES_THERMISTOR
+  #endif
+
   /**
    * Flags for PID handling
    */
@@ -672,6 +684,7 @@
   #define HAS_TEMP_4 (PIN_EXISTS(TEMP_4) && TEMP_SENSOR_4 != 0 && TEMP_SENSOR_4 > -2)
   #define HAS_TEMP_HOTEND (HAS_TEMP_0 || ENABLED(HEATER_0_USES_MAX6675))
   #define HAS_TEMP_BED (PIN_EXISTS(TEMP_BED) && TEMP_SENSOR_BED != 0 && TEMP_SENSOR_BED > -2)
+  #define HAS_TEMP_CHAMBER (PIN_EXISTS(TEMP_CHAMBER) && TEMP_SENSOR_CHAMBER > 0)
 
   // Heaters
   #define HAS_HEATER_0 (PIN_EXISTS(HEATER_0))
@@ -680,6 +693,7 @@
   #define HAS_HEATER_3 (PIN_EXISTS(HEATER_3))
   #define HAS_HEATER_4 (PIN_EXISTS(HEATER_4))
   #define HAS_HEATER_BED (PIN_EXISTS(HEATER_BED))
+  #define HAS_HEATER_CHAMBER (PIN_EXISTS(HEATER_CHAMBER))
 
   // Thermal protection
   #define HAS_THERMALLY_PROTECTED_BED (ENABLED(THERMAL_PROTECTION_BED) && HAS_TEMP_BED && HAS_HEATER_BED)
@@ -776,6 +790,19 @@
       #define HEATER_BED_INVERTING false
     #endif
     #define WRITE_HEATER_BED(v) WRITE(HEATER_BED_PIN, (v) ^ HEATER_BED_INVERTING)
+  #endif
+
+  /**
+   * Heated chamber requires settings
+   */
+  #if HAS_HEATER_CHAMBER
+    #ifndef MAX_CHAMBER_POWER
+      #define MAX_CHAMBER_POWER 255
+    #endif
+    #ifndef HEATER_CHAMBER_INVERTING
+      #define HEATER_CHAMBER_INVERTING false
+    #endif
+    #define WRITE_HEATER_CHAMBER(v) WRITE(HEATER_CHAMBER_PIN, (v) ^ HEATER_CHAMBER_INVERTING)
   #endif
 
   /**

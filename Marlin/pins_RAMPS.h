@@ -170,6 +170,7 @@
 #define TEMP_0_PIN         13   // Analog Input
 #define TEMP_1_PIN         15   // Analog Input
 #define TEMP_BED_PIN       14   // Analog Input
+#define TEMP_CHAMBER_PIN   15
 
 // SPI for Max6675 or Max31855 Thermocouple
 #if DISABLED(SDSUPPORT)
@@ -236,6 +237,8 @@
     #define HEATER_1_PIN MOSFET_D_PIN
   #endif
 #endif
+
+#define HEATER_CHAMBER_PIN RAMPS_D9_PIN
 
 #ifndef FAN_PIN
   #define FAN_PIN 4      // IO pin. Buffer needed

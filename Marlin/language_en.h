@@ -774,6 +774,12 @@
 #ifndef MSG_ERR_MINTEMP_BED
   #define MSG_ERR_MINTEMP_BED                 _UxGT("Err: MINTEMP BED")
 #endif
+#ifndef MSG_ERR_MAXTEMP_CHAMBER
+  #define MSG_ERR_MAXTEMP_CHAMBER             _UxGT("Err: MAXTEMP CHAMBER")
+#endif
+#ifndef MSG_ERR_MINTEMP_CHAMBER
+  #define MSG_ERR_MINTEMP_CHAMBER             _UxGT("Err: MINTEMP CHAMBER")
+#endif
 #ifndef MSG_ERR_Z_HOMING
   #define MSG_ERR_Z_HOMING                    _UxGT("G28 Z Forbidden")
 #endif
@@ -803,6 +809,12 @@
 #endif
 #ifndef MSG_BED_DONE
   #define MSG_BED_DONE                        _UxGT("Bed done.")
+#endif
+#ifndef MSG_CHAMBER_HEATING
+  #define MSG_CHAMBER_HEATING                     _UxGT("Chamber Heating.")
+#endif
+#ifndef MSG_CHAMBER_DONE
+  #define MSG_CHAMBER_DONE                        _UxGT("Chamber done.")
 #endif
 #ifndef MSG_DELTA_CALIBRATE
   #define MSG_DELTA_CALIBRATE                 _UxGT("Delta Calibration")

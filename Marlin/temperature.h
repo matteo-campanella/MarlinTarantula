@@ -77,6 +77,10 @@ enum ADCSensorState {
     PrepareTemp_BED,
     MeasureTemp_BED,
   #endif
+  #if HAS_TEMP_CHAMBER
+    PrepareTemp_CHAMBER,
+    MeasureTemp_CHAMBER,
+  #endif
   #if ENABLED(FILAMENT_WIDTH_SENSOR)
     Prepare_FILWIDTH,
     Measure_FILWIDTH,
@@ -111,24 +115,35 @@ enum ADCSensorState {
   constexpr int16_t target_temperature_bed = 0;
 #endif
 
+#if !HAS_HEATER_CHAMBER
+  constexpr int16_t target_temperature_chamber = 0;
+#endif
+
 class Temperature {
 
   public:
 
     static float current_temperature[HOTENDS],
-                 current_temperature_bed;
+                 current_temperature_bed,
+                 current_temperature_chamber;
     static int16_t current_temperature_raw[HOTENDS],
                    target_temperature[HOTENDS],
-                   current_temperature_bed_raw;
+                   current_temperature_bed_raw,
+                   current_temperature_chamber_raw;
 
     #if HAS_HEATER_BED
       static int16_t target_temperature_bed;
     #endif
 
+    #if HAS_HEATER_CHAMBER
+      static int16_t target_temperature_chamber;
+    #endif
+
     static volatile bool in_temp_isr;
 
     static uint8_t soft_pwm_amount[HOTENDS],
-                   soft_pwm_amount_bed;
+                   soft_pwm_amount_bed,
+                   soft_pwm_amount_chamber;
 
     #if ENABLED(FAN_SOFT_PWM)
       static uint8_t soft_pwm_amount_fan[FAN_COUNT],
@@ -237,8 +252,20 @@ class Temperature {
       static millis_t next_bed_check_ms;
     #endif
 
+    #if ENABLED(PIDTEMPCHAMBER)
+      static float temp_iState_chamber,
+                   temp_dState_chamber,
+                   pTerm_chamber,
+                   iTerm_chamber,
+                   dTerm_chamber,
+                   pid_error_chamber;
+    #else
+      static millis_t next_chamber_check_ms;
+    #endif      
+
     static uint16_t raw_temp_value[MAX_EXTRUDERS],
-                    raw_temp_bed_value;
+                    raw_temp_bed_value,
+                    raw_temp_chamber_value;
 
     // Init min and max temp with extreme values to prevent false errors during startup
     static int16_t minttemp_raw[HOTENDS],
@@ -261,6 +288,14 @@ class Temperature {
     #ifdef BED_MAXTEMP
       static int16_t bed_maxttemp_raw;
     #endif
+
+    #ifdef CHAMBER_MINTEMP
+      static int16_t chamber_minttemp_raw;
+    #endif
+
+    #ifdef CHAMBER_MAXTEMP
+      static int16_t chamber_maxttemp_raw;
+    #endif      
 
     #if ENABLED(FILAMENT_WIDTH_SENSOR)
       static int8_t meas_shift_index;  // Index of a delayed sample in buffer
@@ -285,6 +320,10 @@ class Temperature {
         static millis_t bed_idle_timeout_ms;
         static bool bed_idle_timeout_exceeded;
       #endif
+     #if HAS_TEMP_CHAMBER
+        static millis_t chamber_idle_timeout_ms;
+        static bool chamber_idle_timeout_exceeded;
+      #endif        
     #endif
 
   public:
@@ -309,6 +348,8 @@ class Temperature {
     #if HAS_TEMP_BED
       static float analog2tempBed(const int raw);
     #endif
+
+    static float analog2tempChamber(int raw);
 
     /**
      * Called from the Temperature ISR
@@ -363,6 +404,7 @@ class Temperature {
       return current_temperature[HOTEND_INDEX];
     }
     FORCE_INLINE static float degBed() { return current_temperature_bed; }
+    FORCE_INLINE static float degChamber() { return current_temperature_chamber; }
 
     #if ENABLED(SHOW_TEMP_ADC_VALUES)
       FORCE_INLINE static int16_t rawHotendTemp(const uint8_t e) {
@@ -372,6 +414,7 @@ class Temperature {
         return current_temperature_raw[HOTEND_INDEX];
       }
       FORCE_INLINE static int16_t rawBedTemp() { return current_temperature_bed_raw; }
+      FORCE_INLINE static int16_t rawChamberTemp() { return current_temperature_chamber_raw; }
     #endif
 
     FORCE_INLINE static int16_t degTargetHotend(const uint8_t e) {
@@ -382,6 +425,7 @@ class Temperature {
     }
 
     FORCE_INLINE static int16_t degTargetBed() { return target_temperature_bed; }
+    FORCE_INLINE static int16_t degTargetChamber() { return target_temperature_chamber; }
 
     #if WATCH_HOTENDS
       static void start_watching_heater(const uint8_t e = 0);
@@ -390,6 +434,10 @@ class Temperature {
     #if WATCH_THE_BED
       static void start_watching_bed();
     #endif
+
+    #if WATCH_THE_CHAMBER
+      static void start_watching_chamber();
+    #endif      
 
     static void setTargetHotend(const int16_t celsius, const uint8_t e) {
       #if HOTENDS == 1
@@ -422,6 +470,21 @@ class Temperature {
       #endif
     }
 
+    static void setTargetChamber(const int16_t celsius) {
+      #if HAS_HEATER_CHAMBER
+        target_temperature_chamber =
+          #ifdef CHAMBER_MAXTEMP
+            min(celsius, CHAMBER_MAXTEMP)
+          #else
+            celsius
+          #endif
+        ;
+        #if WATCH_THE_CHAMBER
+          start_watching_chamber();
+        #endif
+      #endif
+    }    
+
     FORCE_INLINE static bool isHeatingHotend(const uint8_t e) {
       #if HOTENDS == 1
         UNUSED(e);
@@ -429,6 +492,7 @@ class Temperature {
       return target_temperature[HOTEND_INDEX] > current_temperature[HOTEND_INDEX];
     }
     FORCE_INLINE static bool isHeatingBed() { return target_temperature_bed > current_temperature_bed; }
+    FORCE_INLINE static bool isHeatingChamber() { return target_temperature_chamber > current_temperature_chamber; }
 
     FORCE_INLINE static bool isCoolingHotend(const uint8_t e) {
       #if HOTENDS == 1
@@ -437,6 +501,7 @@ class Temperature {
       return target_temperature[HOTEND_INDEX] < current_temperature[HOTEND_INDEX];
     }
     FORCE_INLINE static bool isCoolingBed() { return target_temperature_bed < current_temperature_bed; }
+    FORCE_INLINE static bool isCoolingChamber() { return target_temperature_chamber < current_temperature_chamber; }
 
     FORCE_INLINE static bool wait_for_heating(const uint8_t e) {
       return degTargetHotend(e) > TEMP_HYSTERESIS && abs(degHotend(e) - degTargetHotend(e)) > TEMP_HYSTERESIS;

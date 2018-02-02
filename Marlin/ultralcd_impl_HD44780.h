@@ -632,14 +632,19 @@ FORCE_INLINE void _draw_axis_label(const AxisEnum axis, const char* const pstr, 
 }
 
 FORCE_INLINE void _draw_heater_status(const int8_t heater, const char prefix, const bool blink) {
+  #if TEMP_SENSOR_CHAMBER
+    const bool isChamber = heater == -2;
+  #else
+    constexpr bool isChamber = false;
+  #endif  
   #if TEMP_SENSOR_BED
-    const bool isBed = heater < 0;
+    const bool isBed = heater == -1;
   #else
     constexpr bool isBed = false;
   #endif
 
-  const float t1 = (isBed ? thermalManager.degBed()       : thermalManager.degHotend(heater)),
-              t2 = (isBed ? thermalManager.degTargetBed() : thermalManager.degTargetHotend(heater));
+  const float t1 = (isBed ? thermalManager.degBed()       : (isChamber ? thermalManager.degChamber() : thermalManager.degHotend(heater))),
+              t2 = (isBed ? thermalManager.degTargetBed() : (isChamber ? thermalManager.degTargetChamber() : thermalManager.degTargetHotend(heater)));
 
   if (prefix >= 0) lcd.print(prefix);
 
@@ -801,11 +806,14 @@ static void lcd_implementation_status_screen() {
       // If the first line has two extruder temps,
       // show more temperatures on the next line.
 
-      #if HOTENDS > 2 || (HOTENDS > 1 && TEMP_SENSOR_BED)
+      #if HOTENDS > 2 || (HOTENDS > 1 && TEMP_SENSOR_BED) || (HOTENDS == 1 && TEMP_SENSOR_BED && TEMP_SENSOR_CHAMBER) 
 
         #if HOTENDS > 2
           _draw_heater_status(2, LCD_STR_THERMOMETER[0], blink);
           lcd.setCursor(10, 1);
+        #elif HOTENDS == 1
+          _draw_heater_status(-2, LCD_STR_THERMOMETER[0], blink);
+          lcd.setCursor(10, 1);          
         #endif
 
         _draw_heater_status(-1, (
