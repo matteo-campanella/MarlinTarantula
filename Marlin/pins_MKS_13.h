@@ -53,6 +53,8 @@
 
 #include "pins_RAMPS.h"
 
+#define HEATER_CHAMBER_PIN 2 
+
 //
 // LCD / Controller
 //
