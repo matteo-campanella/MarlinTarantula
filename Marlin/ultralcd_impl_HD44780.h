@@ -820,10 +820,12 @@ static void lcd_implementation_status_screen() {
         // When axis is homed but axis_known_position is false the axis letters are blinking 'X' <-> ' '.
         // When everything is ok you see a constant 'X'.
 
+        lcd.print(itostr2(thermalManager.degChamber()+0.5));
+
         _draw_axis_label(X_AXIS, PSTR(MSG_X), blink);
         lcd.print(ftostr4sign(LOGICAL_X_POSITION(current_position[X_AXIS])));
 
-        lcd.write(' ');
+        //lcd.write(' ');
 
         _draw_axis_label(Y_AXIS, PSTR(MSG_Y), blink);
         lcd.print(ftostr4sign(LOGICAL_Y_POSITION(current_position[Y_AXIS])));

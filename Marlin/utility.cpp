@@ -64,6 +64,14 @@ void safe_delay(millis_t ms) {
     return &conv[4];
   }
 
+  char* itostr2(const int x) {
+    int xx = x;
+    conv[4] = RJDIGIT(xx, 10);
+    conv[5] = DIGIMOD(xx, 1);
+    conv[6] = 0;
+    return &conv[4];
+  }  
+
   // Convert signed int to rj string with 123 or -12 format
   char* itostr3(const int x) {
     int xx = x;

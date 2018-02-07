@@ -374,6 +374,7 @@ class Temperature {
       return current_temperature[HOTEND_INDEX];
     }
     FORCE_INLINE static float degBed() { return current_temperature_bed; }
+    FORCE_INLINE static float degChamber() { return current_temperature_chamber; }
 
     #if ENABLED(SHOW_TEMP_ADC_VALUES)
       FORCE_INLINE static int16_t rawHotendTemp(const uint8_t e) {
