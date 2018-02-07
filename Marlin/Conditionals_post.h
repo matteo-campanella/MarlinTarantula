@@ -345,6 +345,18 @@
     #define BED_USES_THERMISTOR
   #endif
 
+  #if TEMP_SENSOR_CHAMBER <= -2
+    #error "MAX6675 / MAX31855 Thermocouples not supported for TEMP_SENSOR_CHAMBER"
+  #elif TEMP_SENSOR_CHAMBER == -1
+    #define BED_USES_AD595
+  #elif TEMP_SENSOR_CHAMBER == 0
+    #undef CHAMBER_MINTEMP
+    #undef CHAMBER_MAXTEMP
+  #elif TEMP_SENSOR_CHAMBER > 0
+    #define THERMISTORBED TEMP_SENSOR_CHAMBER
+    #define CHAMBER_USES_THERMISTOR
+  #endif  
+
   /**
    * Flags for PID handling
    */
@@ -672,6 +684,7 @@
   #define HAS_TEMP_4 (PIN_EXISTS(TEMP_4) && TEMP_SENSOR_4 != 0 && TEMP_SENSOR_4 > -2)
   #define HAS_TEMP_HOTEND (HAS_TEMP_0 || ENABLED(HEATER_0_USES_MAX6675))
   #define HAS_TEMP_BED (PIN_EXISTS(TEMP_BED) && TEMP_SENSOR_BED != 0 && TEMP_SENSOR_BED > -2)
+  #define HAS_TEMP_CHAMBER (PIN_EXISTS(TEMP_CHAMBER) && TEMP_SENSOR_CHAMBER != 0 && TEMP_SENSOR_CHAMBER > -2)
 
   // Heaters
   #define HAS_HEATER_0 (PIN_EXISTS(HEATER_0))

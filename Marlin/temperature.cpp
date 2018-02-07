@@ -60,10 +60,12 @@ Temperature thermalManager;
 // public:
 
 float Temperature::current_temperature[HOTENDS] = { 0.0 },
-      Temperature::current_temperature_bed = 0.0;
+      Temperature::current_temperature_bed = 0.0,
+      Temperature::current_temperature_chamber = 0.0;
 int16_t Temperature::current_temperature_raw[HOTENDS] = { 0 },
         Temperature::target_temperature[HOTENDS] = { 0 },
-        Temperature::current_temperature_bed_raw = 0;
+        Temperature::current_temperature_bed_raw = 0,
+        Temperature::current_temperature_chamber_raw = 0;
 
 #if HAS_HEATER_BED
   int16_t Temperature::target_temperature_bed = 0;
@@ -147,7 +149,8 @@ volatile bool Temperature::temp_meas_ready = false;
 #endif
 
 uint16_t Temperature::raw_temp_value[MAX_EXTRUDERS] = { 0 },
-         Temperature::raw_temp_bed_value = 0;
+         Temperature::raw_temp_bed_value = 0,
+         Temperature::raw_temp_chamber_value = 0;
 
 // Init min and max temp with extreme values to prevent false errors during startup
 int16_t Temperature::minttemp_raw[HOTENDS] = ARRAY_BY_HOTENDS(HEATER_0_RAW_LO_TEMP , HEATER_1_RAW_LO_TEMP , HEATER_2_RAW_LO_TEMP, HEATER_3_RAW_LO_TEMP, HEATER_4_RAW_LO_TEMP),
@@ -935,6 +938,39 @@ float Temperature::analog2temp(const int raw, const uint8_t e) {
   }
 #endif // HAS_TEMP_BED
 
+//Chamber temperature measurement.
+float Temperature::analog2tempChamber(const int raw) {
+  #if ENABLED(CHAMBER_USES_THERMISTOR)
+    float celsius = 0;
+    byte i;
+
+    for (i = 1; i < CHAMBERTEMPTABLE_LEN; i++) {
+      if (PGM_RD_W(CHAMBERTEMPTABLE[i][0]) > raw) {
+        celsius  = PGM_RD_W(CHAMBERTEMPTABLE[i - 1][1]) +
+                   (raw - PGM_RD_W(CHAMBERTEMPTABLE[i - 1][0])) *
+                   (float)(PGM_RD_W(CHAMBERTEMPTABLE[i][1]) - PGM_RD_W(CHAMBERTEMPTABLE[i - 1][1])) /
+                   (float)(PGM_RD_W(CHAMBERTEMPTABLE[i][0]) - PGM_RD_W(CHAMBERTEMPTABLE[i - 1][0]));
+        break;
+      }
+    }
+
+    // Overflow: Set to last value in the table
+    if (i == CHAMBERTEMPTABLE_LEN) celsius = PGM_RD_W(CHAMBERTEMPTABLE[i - 1][1]);
+
+    return celsius;
+    
+  #elif defined(CHAMBER_USES_AD595)
+
+      return ((raw * ((5.0 * 100.0) / 1024.0) / OVERSAMPLENR) * (TEMP_SENSOR_AD595_GAIN)) + TEMP_SENSOR_AD595_OFFSET;
+
+  #else
+
+    UNUSED(raw);
+    return 0;
+
+  #endif
+}
+
 /**
  * Get the raw values into the actual temperatures.
  * The raw values are created in interrupt context,
@@ -949,6 +985,9 @@ void Temperature::updateTemperaturesFromRawValues() {
     current_temperature[e] = Temperature::analog2temp(current_temperature_raw[e], e);
   #if HAS_TEMP_BED
     current_temperature_bed = Temperature::analog2tempBed(current_temperature_bed_raw);
+  #endif
+  #if HAS_TEMP_CHAMBER
+    current_temperature_chamber = Temperature::analog2tempBed(current_temperature_chamber_raw);
   #endif
   #if ENABLED(TEMP_SENSOR_1_AS_REDUNDANT)
     redundant_temperature = Temperature::analog2temp(redundant_temperature_raw, 1);
@@ -1530,6 +1569,7 @@ void Temperature::set_current_temp_raw() {
     #endif
   #endif
   current_temperature_bed_raw = raw_temp_bed_value;
+  current_temperature_chamber_raw = raw_temp_chamber_value;
   temp_meas_ready = true;
 }
 
@@ -1976,6 +2016,15 @@ void Temperature::isr() {
         raw_temp_bed_value += ADC;
         break;
     #endif
+    
+    #if HAS_TEMP_CHAMBER
+      case PrepareTemp_CHAMBER:
+        START_ADC(TEMP_CHAMBER_PIN);
+        break;
+      case MeasureTemp_CHAMBER:
+        raw_temp_chamber_value += ADC;
+        break;
+    #endif    
 
     #if HAS_TEMP_1
       case PrepareTemp_1:
@@ -2063,6 +2112,7 @@ void Temperature::isr() {
 
     ZERO(raw_temp_value);
     raw_temp_bed_value = 0;
+    raw_temp_chamber_value = 0;
 
     #define TEMPDIR(N) ((HEATER_##N##_RAW_LO_TEMP) > (HEATER_##N##_RAW_HI_TEMP) ? -1 : 1)
 

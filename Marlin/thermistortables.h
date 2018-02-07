@@ -29,7 +29,7 @@
 #define OVERSAMPLENR 16
 #define OV(N) int16_t((N)*(OVERSAMPLENR))
 
-#define ANY_THERMISTOR_IS(n) (THERMISTORHEATER_0 == n || THERMISTORHEATER_1 == n || THERMISTORHEATER_2 == n || THERMISTORHEATER_3 == n || THERMISTORHEATER_4 == n || THERMISTORBED == n)
+#define ANY_THERMISTOR_IS(n) (THERMISTORHEATER_0 == n || THERMISTORHEATER_1 == n || THERMISTORHEATER_2 == n || THERMISTORHEATER_3 == n || THERMISTORHEATER_4 == n || THERMISTORBED == n THERMISTORCHAMBER == n)
 
 // Pt1000 and Pt100 handling
 //
@@ -188,6 +188,15 @@
 #else
   #ifdef BED_USES_THERMISTOR
     #error "No bed thermistor table specified"
+  #endif
+#endif
+
+#ifdef THERMISTORCHAMBER
+  #define CHAMBERTEMPTABLE TT_NAME(THERMISTORCHAMBER)
+  #define CHAMBERTEMPTABLE_LEN COUNT(CHAMBERTEMPTABLE)
+#else
+  #ifdef CHAMBER_USES_THERMISTOR
+    #error "No chamber thermistor table specified"
   #endif
 #endif
 

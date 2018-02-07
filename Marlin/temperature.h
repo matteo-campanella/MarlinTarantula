@@ -77,6 +77,10 @@ enum ADCSensorState {
     PrepareTemp_BED,
     MeasureTemp_BED,
   #endif
+  #if HAS_TEMP_CHAMBER
+    PrepareTemp_CHAMBER,
+    MeasureTemp_CHAMBER,
+  #endif  
   #if ENABLED(FILAMENT_WIDTH_SENSOR)
     Prepare_FILWIDTH,
     Measure_FILWIDTH,
@@ -116,10 +120,12 @@ class Temperature {
   public:
 
     static float current_temperature[HOTENDS],
-                 current_temperature_bed;
+                 current_temperature_bed,
+                 current_temperature_chamber;
     static int16_t current_temperature_raw[HOTENDS],
                    target_temperature[HOTENDS],
-                   current_temperature_bed_raw;
+                   current_temperature_bed_raw,
+                   current_temperature_chamber_raw;
 
     #if HAS_HEATER_BED
       static int16_t target_temperature_bed;
@@ -238,7 +244,8 @@ class Temperature {
     #endif
 
     static uint16_t raw_temp_value[MAX_EXTRUDERS],
-                    raw_temp_bed_value;
+                    raw_temp_bed_value,
+                    raw_temp_chamber_value;
 
     // Init min and max temp with extreme values to prevent false errors during startup
     static int16_t minttemp_raw[HOTENDS],
@@ -308,6 +315,10 @@ class Temperature {
 
     #if HAS_TEMP_BED
       static float analog2tempBed(const int raw);
+    #endif
+
+    #if HAS_TEMP_CHAMBER
+      static float analog2tempChamber(const int raw);
     #endif
 
     /**
