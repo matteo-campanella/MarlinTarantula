@@ -270,6 +270,7 @@
 #ifndef FIL_RUNOUT_PIN
   //#define FIL_RUNOUT_PIN    4
   #define FIL_RUNOUT_PIN    19
+  #undef Z_MAX_PIN
 #endif
 
 #ifndef PS_ON_PIN
