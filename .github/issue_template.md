@@ -1,36 +1,35 @@
-Thank you for submitting your feedback to the Marlin project.
-Please use one of the templates below to fill out this box.
+<!--
 
-------------------------------------------------------------
-### Feature Request
-Please put [FR] in the issue title: `[FR] Add-on that goes 'ping'`
+Have you read Marlin's Code of Conduct? By filing an Issue, you are expected to comply with it, including treating everyone with respect: https://github.com/MarlinFirmware/Marlin/blob/bugfix-2.0.x/.github/code_of_conduct.md
 
-------------------------------------------------------------
-### Compile Error
-When I compile with `FEATURE_X` I get an error:
-```
-Paste_the_error_text_here
-```
+Do you want to ask a question? Are you looking for support? Please don't post here. Instead use one of the following options:
 
-------------------------------------------------------------
-### Bug Report
-- Description: ---
-- Expected behaviour: ---
-- Actual behaviour: ---
-- Steps to reproduce:
-  - Do this
-  - Do that
+- The Marlin Firmware forum at https://reprap.org/forum/list.php?415
+- The MarlinFirmware Facebook Group at https://www.facebook.com/groups/1049718498464482/
+- The MarlinFirmware Discord Server at https://discord.gg/n5NJ59y.
 
-Attach a ZIP of `Configuration.h` and `Configuration_adv.h` by dropping here.
+Before filing an issue be sure to test the latest "bugfix" branch to see whether the issue is already addressed.
 
-------------------------------------------------------------
-### Bug Report Tips
-- When troubleshooting, use `M502` followed by `M500` to reset EEPROM to defaults.
-- Use `DEBUG_LEVELING_FEATURE` with `M111 S247` for detailed logging of homing/leveling.
-- Format text with: **bold**, _italic_, `code`.
-- Format C++ with three backticks, plus "cpp":
-```cpp
-void my_function(bool do_it) {
-  // Hold this spot
-}
-```
+-->
+
+### Description
+
+<!-- Description of the bug or requested feature -->
+
+### Steps to Reproduce
+
+<!-- If this is a Bug Report, please describe the steps needed to reproduce the issue -->
+
+1. [First Step]
+2. [Second Step]
+3. [and so on...]
+
+**Expected behavior:** [What you expect to happen]
+
+**Actual behavior:** [What actually happens]
+
+#### Additional Information
+
+* Include a ZIP file containing your `Configuration.h` and `Configuration_adv.h` files.
+* Provide pictures or links to videos that clearly demonstrate the issue.
+* See [How Can I Contribute](#how-can-i-contribute) for additional guidelines.

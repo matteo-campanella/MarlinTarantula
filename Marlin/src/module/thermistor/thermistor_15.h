@@ -1,9 +1,9 @@
 /**
  * Marlin 3D Printer Firmware
- * Copyright (C) 2016 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
+ * Copyright (c) 2020 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
  *
  * Based on Sprinter and grbl.
- * Copyright (C) 2011 Camiel Gubbels / Erik van der Zalm
+ * Copyright (c) 2011 Camiel Gubbels / Erik van der Zalm
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,22 +16,23 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
+#pragma once
 
  // 100k bed thermistor in JGAurora A5. Calibrated by Sam Pinches 21st Jan 2018 using cheap k-type thermocouple inserted into heater block, using TM-902C meter.
-const short temptable_15[][2] PROGMEM = {
+const temp_entry_t temptable_15[] PROGMEM = {
   { OV(  31), 275 },
   { OV(  33), 270 },
   { OV(  35), 260 },
   { OV(  38), 253 },
   { OV(  41), 248 },
-  { OV( 48), 239 },
-  { OV( 56), 232 },
-  { OV( 66), 222 },
-  { OV( 78), 212 },
-  { OV( 93), 206 },
+  { OV(  48), 239 },
+  { OV(  56), 232 },
+  { OV(  66), 222 },
+  { OV(  78), 212 },
+  { OV(  93), 206 },
   { OV( 106), 199 },
   { OV( 118), 191 },
   { OV( 130), 186 },
@@ -39,10 +40,10 @@ const short temptable_15[][2] PROGMEM = {
   { OV( 187), 167 },
   { OV( 224), 158 },
   { OV( 270), 148 },
-  { OV( 321),  137 },
-  { OV( 379),  127 },
-  { OV( 446),  117 },
-  { OV( 518),  106 },
+  { OV( 321), 137 },
+  { OV( 379), 127 },
+  { OV( 446), 117 },
+  { OV( 518), 106 },
   { OV( 593),  96 },
   { OV( 668),  86 },
   { OV( 739),  76 },

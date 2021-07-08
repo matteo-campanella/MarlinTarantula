@@ -1,9 +1,9 @@
 /**
  * Marlin 3D Printer Firmware
- * Copyright (C) 2016 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
+ * Copyright (c) 2020 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
  *
  * Based on Sprinter and grbl.
- * Copyright (C) 2011 Camiel Gubbels / Erik van der Zalm
+ * Copyright (c) 2011 Camiel Gubbels / Erik van der Zalm
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,12 +16,12 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
 
 /**
- * unified.cpp - Unified Bed Leveling
+ * M421.cpp - Unified Bed Leveling
  */
 
 #include "../../../inc/MarlinConfig.h"
@@ -31,39 +31,43 @@
 #include "../../gcode.h"
 #include "../../../feature/bedlevel/bedlevel.h"
 
+#if ENABLED(EXTENSIBLE_UI)
+  #include "../../../lcd/extui/ui_api.h"
+#endif
+
 /**
  * M421: Set a single Mesh Bed Leveling Z coordinate
  *
  * Usage:
- *   M421 I<xindex> J<yindex> Z<linear>
- *   M421 I<xindex> J<yindex> Q<offset>
- *   M421 C Z<linear>
- *   M421 C Q<offset>
+ *   M421 I<xindex> J<yindex> Z<linear>  : Set the Mesh Point IJ to the Z value
+ *   M421 I<xindex> J<yindex> Q<offset>  : Add the Q value to the Mesh Point IJ
+ *   M421 I<xindex> J<yindex> N          : Set the Mesh Point IJ to NAN (not set)
+ *   M421 C Z<linear>                    : Set the closest Mesh Point to the Z value
+ *   M421 C Q<offset>                    : Add the Q value to the closest Mesh Point
  */
 void GcodeSuite::M421() {
-  int8_t ix = parser.intval('I', -1), iy = parser.intval('J', -1);
-  const bool hasI = ix >= 0,
-             hasJ = iy >= 0,
-             hasC = parser.seen('C'),
+  xy_int8_t ij = { int8_t(parser.intval('I', -1)), int8_t(parser.intval('J', -1)) };
+  const bool hasI = ij.x >= 0,
+             hasJ = ij.y >= 0,
+             hasC = parser.seen_test('C'),
+             hasN = parser.seen_test('N'),
              hasZ = parser.seen('Z'),
              hasQ = !hasZ && parser.seen('Q');
 
-  if (hasC) {
-    const mesh_index_pair location = ubl.find_closest_mesh_point_of_type(REAL, current_position[X_AXIS], current_position[Y_AXIS], USE_NOZZLE_AS_REFERENCE, NULL);
-    ix = location.x_index;
-    iy = location.y_index;
-  }
+  if (hasC) ij = ubl.find_closest_mesh_point_of_type(CLOSEST, current_position);
 
-  if (int(hasC) + int(hasI && hasJ) != 1 || !(hasZ || hasQ)) {
-    SERIAL_ERROR_START();
-    SERIAL_ERRORLNPGM(MSG_ERR_M421_PARAMETERS);
+  // Test for bad parameter combinations
+  if (int(hasC) + int(hasI && hasJ) != 1 || !(hasZ || hasQ || hasN))
+    SERIAL_ERROR_MSG(STR_ERR_M421_PARAMETERS);
+
+  // Test for I J out of range
+  else if (!WITHIN(ij.x, 0, GRID_MAX_POINTS_X - 1) || !WITHIN(ij.y, 0, GRID_MAX_POINTS_Y - 1))
+    SERIAL_ERROR_MSG(STR_ERR_MESH_XY);
+  else {
+    float &zval = ubl.z_values[ij.x][ij.y];                               // Altering this Mesh Point
+    zval = hasN ? NAN : parser.value_linear_units() + (hasQ ? zval : 0);  // N=NAN, Z=NEWVAL, or Q=ADDVAL
+    TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(ij.x, ij.y, zval));          // Ping ExtUI in case it's showing the mesh
   }
-  else if (!WITHIN(ix, 0, GRID_MAX_POINTS_X - 1) || !WITHIN(iy, 0, GRID_MAX_POINTS_Y - 1)) {
-    SERIAL_ERROR_START();
-    SERIAL_ERRORLNPGM(MSG_ERR_MESH_XY);
-  }
-  else
-    ubl.z_values[ix][iy] = parser.value_linear_units() + (hasQ ? ubl.z_values[ix][iy] : 0);
 }
 
 #endif // AUTO_BED_LEVELING_UBL
